@@ -1,0 +1,7 @@
+apiVersion: gateway.luolanzone.io/v1alpha1
+kind: TunnelEndpoint
+metadata:
+  name: tunnelendpoint-sample
+spec:
+  # Add fields here
+  foo: bar

@@ -1,0 +1,7 @@
+apiVersion: gateway.luolanzone.io/v1alpha1
+kind: MemberClusterInfo
+metadata:
+  name: memberclusterinfo-sample
+spec:
+  # Add fields here
+  foo: bar

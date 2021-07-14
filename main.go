@@ -17,12 +17,17 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"os"
+	"os/signal"
+	"syscall"
 
 	// Import all Kubernetes client auth plugins (e.g. Azure, GCP, OIDC, etc.)
 	// to ensure that exec-entrypoint and run can make use of them.
+	"k8s.io/client-go/kubernetes"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
+	"k8s.io/klog"
 
 	"k8s.io/apimachinery/pkg/runtime"
 	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
@@ -30,17 +35,24 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+
+	gatewayv1alpha1 "github.com/luolanzone/tunnel-example/apis/gateway/v1alpha1"
+	gatewaycontrollers "github.com/luolanzone/tunnel-example/controllers/gateway"
+	clientset "github.com/luolanzone/tunnel-example/pkg/client/clientset/versioned"
+	monitor "github.com/luolanzone/tunnel-example/pkg/monitor"
 	//+kubebuilder:scaffold:imports
 )
 
 var (
-	scheme   = runtime.NewScheme()
-	setupLog = ctrl.Log.WithName("setup")
+	scheme          = runtime.NewScheme()
+	setupLog        = ctrl.Log.WithName("setup")
+	capturedSignals = []os.Signal{syscall.SIGTERM, syscall.SIGINT, syscall.SIGQUIT}
 )
 
 func init() {
 	utilruntime.Must(clientgoscheme.AddToScheme(scheme))
 
+	utilruntime.Must(gatewayv1alpha1.AddToScheme(scheme))
 	//+kubebuilder:scaffold:scheme
 }
 
@@ -60,8 +72,8 @@ func main() {
 	flag.Parse()
 
 	ctrl.SetLogger(zap.New(zap.UseFlagOptions(&opts)))
-
-	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
+	k8sConfig := ctrl.GetConfigOrDie()
+	mgr, err := ctrl.NewManager(k8sConfig, ctrl.Options{
 		Scheme:                 scheme,
 		MetricsBindAddress:     metricsAddr,
 		Port:                   9443,
@@ -74,6 +86,34 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err = (&gatewaycontrollers.TunnelEndpointReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("gateway").WithName("TunnelEndpoint"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "TunnelEndpoint")
+		os.Exit(1)
+	}
+	if err = (&gatewaycontrollers.MemberClusterInfoReconciler{
+		Client: mgr.GetClient(),
+		Log:    ctrl.Log.WithName("controllers").WithName("gateway").WithName("MemberClusterInfo"),
+		Scheme: mgr.GetScheme(),
+	}).SetupWithManager(mgr); err != nil {
+		setupLog.Error(err, "unable to create controller", "controller", "MemberClusterInfo")
+		os.Exit(1)
+	}
+
+	kubeClient, err := kubernetes.NewForConfig(k8sConfig)
+	if err != nil {
+		klog.Fatalf("Error building kubernetes clientset: %s", err.Error())
+	}
+	crdClient, err := clientset.NewForConfig(k8sConfig)
+	if err != nil {
+		klog.Fatalf("Error building crd clientset: %s", err.Error())
+	}
+	crdmonitor := monitor.NewTunnelEndpointController(crdClient, kubeClient, context.TODO())
+	stopCh := RegisterSignalHandlers()
+	go crdmonitor.Run(stopCh)
 	//+kubebuilder:scaffold:builder
 
 	if err := mgr.AddHealthzCheck("healthz", healthz.Ping); err != nil {
@@ -90,4 +130,22 @@ func main() {
 		setupLog.Error(err, "problem running manager")
 		os.Exit(1)
 	}
+}
+
+func RegisterSignalHandlers() <-chan struct{} {
+	notifyCh := make(chan os.Signal, 2)
+	stopCh := make(chan struct{})
+
+	go func() {
+		<-notifyCh
+		close(stopCh)
+		<-notifyCh
+		klog.Warning("Received second signal, will force exit")
+		klog.Flush()
+		os.Exit(1)
+	}()
+
+	signal.Notify(notifyCh, capturedSignals...)
+
+	return stopCh
 }

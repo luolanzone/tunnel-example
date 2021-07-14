@@ -4,4 +4,23 @@ layout:
 multigroup: true
 projectName: tunnel-example
 repo: github.com/luolanzone/tunnel-example
+resources:
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: luolanzone.io
+  group: gateway
+  kind: TunnelEndpoint
+  path: github.com/luolanzone/tunnel-example/apis/gateway/v1alpha1
+  version: v1alpha1
+- api:
+    crdVersion: v1
+    namespaced: true
+  controller: true
+  domain: luolanzone.io
+  group: gateway
+  kind: MemberClusterInfo
+  path: github.com/luolanzone/tunnel-example/apis/gateway/v1alpha1
+  version: v1alpha1
 version: "3"

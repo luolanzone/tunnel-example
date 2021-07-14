@@ -1,0 +1,83 @@
+
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.4.1
+  creationTimestamp: null
+  name: tunnelendpoints.gateway.luolanzone.io
+spec:
+  group: gateway.luolanzone.io
+  names:
+    kind: TunnelEndpoint
+    listKind: TunnelEndpointList
+    plural: tunnelendpoints
+    singular: tunnelendpoint
+  scope: Cluster
+  versions:
+  - name: v1alpha1
+    schema:
+      openAPIV3Schema:
+        description: TunnelEndpoint is the Schema for the tunnelendpoints API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: TunnelEndpointSpec defines the desired state of TunnelEndpoint
+            properties:
+              clusterID:
+                description: ClusterID of the member cluster.
+                type: string
+              hostname:
+                description: Hostname of Gateway node
+                type: string
+              privateIP:
+                description: PrivateIP of Gateway node
+                pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$
+                type: string
+              publicIP:
+                description: PublicIP of Gateway node
+                pattern: ^(([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[0-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])$
+                type: string
+              role:
+                description: Role (leader/member) shows the role of Gateway node if
+                  HA is enabled
+                enum:
+                - Leader
+                - Member
+                - Unknown
+                type: string
+              subnets:
+                description: Subnets used by member cluster in each node.
+                items:
+                  type: string
+                type: array
+            type: object
+          status:
+            description: TunnelEndpointStatus defines the observed state of TunnelEndpoint
+            properties:
+              status:
+                description: Status of TunnelEndpoint, one word of True, False, Unknown
+                  to indicate the TunnelPoint
+                type: string
+            type: object
+        type: object
+    served: true
+    storage: true
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []
