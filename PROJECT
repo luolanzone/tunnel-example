@@ -1,0 +1,7 @@
+domain: luolanzone.io
+layout:
+- go.kubebuilder.io/v3
+multigroup: true
+projectName: tunnel-example
+repo: github.com/luolanzone/tunnel-example
+version: "3"
